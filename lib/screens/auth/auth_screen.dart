@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/gradient_button.dart';
+import '../../providers/auth_provider.dart';
+import '../shell/main_shell.dart';
 
-class AuthScreen extends StatefulWidget {
+class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
 
   @override
-  State<AuthScreen> createState() => _AuthScreenState();
+  ConsumerState<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool isSignUp = true;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   final _usernameController = TextEditingController();
   final _contactController = TextEditingController();
@@ -35,11 +40,8 @@ class _AuthScreenState extends State<AuthScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo
               _buildLogo(),
               const SizedBox(height: 32),
-
-              // Headline
               Text(
                 'Find your dream team.',
                 style: GoogleFonts.inter(
@@ -57,12 +59,41 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-
-              // Tabs
               _buildTabs(),
               const SizedBox(height: 32),
 
-              // Form
+              // Error message
+              if (_errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: AppColors.error,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
               if (isSignUp) _buildSignUpForm() else _buildLoginForm(),
             ],
           ),
@@ -115,7 +146,10 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildTab(String label, bool isActive) {
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => isSignUp = label == 'Sign up'),
+        onTap: () => setState(() {
+          isSignUp = label == 'Sign up';
+          _errorMessage = null;
+        }),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -158,7 +192,6 @@ class _AuthScreenState extends State<AuthScreen> {
           icon: Icons.person_outline,
         ),
         const SizedBox(height: 20),
-
         _buildLabel('CONTACT'),
         const SizedBox(height: 8),
         _buildTextField(
@@ -167,7 +200,6 @@ class _AuthScreenState extends State<AuthScreen> {
           icon: Icons.alternate_email,
         ),
         const SizedBox(height: 20),
-
         _buildLabel('HACKATHON CODE OR NAME'),
         const SizedBox(height: 8),
         _buildTextField(
@@ -176,10 +208,10 @@ class _AuthScreenState extends State<AuthScreen> {
           icon: Icons.code_rounded,
         ),
         const SizedBox(height: 32),
-
-        GradientButton(text: 'Create account', onPressed: _handleSignUp),
+        _isLoading
+            ? _buildLoadingButton()
+            : GradientButton(text: 'Create account', onPressed: _handleSignUp),
         const SizedBox(height: 16),
-
         Center(
           child: Text(
             'By continuing you agree to play nice and ship fast.',
@@ -206,7 +238,6 @@ class _AuthScreenState extends State<AuthScreen> {
           icon: Icons.person_outline,
         ),
         const SizedBox(height: 20),
-
         _buildLabel('HACKATHON CODE OR NAME'),
         const SizedBox(height: 8),
         _buildTextField(
@@ -215,8 +246,9 @@ class _AuthScreenState extends State<AuthScreen> {
           icon: Icons.code_rounded,
         ),
         const SizedBox(height: 32),
-
-        GradientButton(text: 'Log in', onPressed: _handleLogin),
+        _isLoading
+            ? _buildLoadingButton()
+            : GradientButton(text: 'Log in', onPressed: _handleLogin),
       ],
     );
   }
@@ -247,13 +279,102 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  void _handleSignUp() {
-    // We'll connect Firebase Auth here later
-    debugPrint('Sign up: ${_usernameController.text}');
+  Widget _buildLoadingButton() {
+    return Container(
+      width: double.infinity,
+      height: 52,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.gradientStart, AppColors.gradientEnd],
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+      ),
+    );
   }
 
-  void _handleLogin() {
-    // We'll connect Firebase Auth here later
-    debugPrint('Login: ${_usernameController.text}');
+  Future<void> _handleSignUp() async {
+    if (_usernameController.text.trim().isEmpty ||
+        _contactController.text.trim().isEmpty ||
+        _hackathonController.text.trim().isEmpty) {
+      setState(() => _errorMessage = 'Please fill in all fields.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await ref
+          .read(currentUserProvider.notifier)
+          .signUp(
+            username: _usernameController.text.trim(),
+            contact: _contactController.text.trim(),
+            hackathon: _hackathonController.text.trim().toUpperCase(),
+          );
+
+      if (mounted) {
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const MainShell()));
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = _parseError(e.toString());
+      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleLogin() async {
+    if (_usernameController.text.trim().isEmpty ||
+        _hackathonController.text.trim().isEmpty) {
+      setState(() => _errorMessage = 'Please fill in all fields.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await ref
+          .read(currentUserProvider.notifier)
+          .login(
+            username: _usernameController.text.trim(),
+            hackathon: _hackathonController.text.trim().toUpperCase(),
+          );
+
+      if (mounted) {
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const MainShell()));
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = _parseError(e.toString());
+      });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _parseError(String error) {
+    if (error.contains('email-already-in-use')) {
+      return 'This username is already taken.';
+    } else if (error.contains('User not found')) {
+      return 'User not found. Check your username and hackathon code.';
+    } else if (error.contains('wrong-password')) {
+      return 'Incorrect credentials.';
+    } else if (error.contains('network-request-failed')) {
+      return 'No internet connection.';
+    }
+    return 'Something went wrong. Please try again.';
   }
 }
