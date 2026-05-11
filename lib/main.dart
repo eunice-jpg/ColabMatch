@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
+import 'core/theme/app_theme.dart';
+import 'screen/auth/auth_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +19,8 @@ class ColabMatch extends StatelessWidget {
     return MaterialApp(
       title: 'ColabMatch',
       debugShowCheckedModeBanner: false,
-      home: Scaffold(body: Center(child: Text('ColabMatch'))),
+      theme: AppTheme.lightTheme,
+      home: const AuthScreen(),
     );
   }
 }

@@ -11,7 +11,7 @@ class AppColors {
   static const Color gradientEnd = Color(0xFF9B8FFF);
 
   // Background
-  static const Color background = Color(0xFFF5F5F5);
+  static const Color background = Color(0xFFF3F2FF);
   static const Color surface = Color(0xFFFFFFFF);
 
   // Text
