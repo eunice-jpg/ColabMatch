@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/project_provider.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+    final trendingAsync = user != null
+        ? ref.watch(trendingProjectsProvider(user.hackathon))
+        : null;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -15,20 +23,13 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Greeting
-              _buildGreeting(),
+              _buildGreeting(user?.username ?? ''),
               const SizedBox(height: 24),
-
-              // Match Readiness Card
-              _buildMatchReadinessCard(),
+              _buildMatchReadinessCard(user),
               const SizedBox(height: 24),
-
-              // Quick Actions Grid
               _buildQuickActionsGrid(context),
               const SizedBox(height: 24),
-
-              // Trending Section
-              _buildTrendingSection(),
+              _buildTrendingSection(trendingAsync),
             ],
           ),
         ),
@@ -36,14 +37,14 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGreeting() {
+  Widget _buildGreeting(String username) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Text(
-              'Hey, alex ',
+              'Hey, $username ',
               style: GoogleFonts.inter(
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
@@ -54,18 +55,20 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 4),
-        Text(
-          'Hackathon · HACK2026',
-          style: GoogleFonts.inter(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
       ],
     );
   }
 
-  Widget _buildMatchReadinessCard() {
+  Widget _buildMatchReadinessCard(user) {
+    // Calculate match readiness based on profile completeness
+    int score = 0;
+    if (user != null) {
+      if (user.skills.isNotEmpty) score += 40;
+      if (user.interests.isNotEmpty) score += 30;
+      if (user.bio.isNotEmpty) score += 20;
+      if (user.experienceLevel != 'Beginner') score += 10;
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -93,7 +96,7 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '64%',
+                '$score%',
                 style: GoogleFonts.inter(
                   fontSize: 42,
                   fontWeight: FontWeight.bold,
@@ -117,7 +120,9 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Add skills & interests to improve matches.',
+            score < 100
+                ? 'Add skills & interests to improve matches.'
+                : 'Your profile is complete!',
             style: GoogleFonts.inter(
               fontSize: 13,
               color: Colors.white.withOpacity(0.75),
@@ -135,28 +140,24 @@ class HomeScreen extends StatelessWidget {
         'subtitle': 'Showcase skills',
         'icon': Icons.person_outline_rounded,
         'color': const Color(0xFF6C63FF),
-        'route': '/profile',
       },
       {
         'label': 'Create',
         'subtitle': 'Find collaborators',
         'icon': Icons.add_box_outlined,
         'color': const Color(0xFF10B981),
-        'route': '/create',
       },
       {
         'label': 'Browse',
         'subtitle': 'Join a team',
         'icon': Icons.explore_outlined,
         'color': const Color(0xFFF59E0B),
-        'route': '/browse',
       },
       {
         'label': 'Inbox',
-        'subtitle': '0 pending',
+        'subtitle': 'Collaboration requests',
         'icon': Icons.notifications_outlined,
         'color': const Color(0xFF8B5CF6),
-        'route': '/notifications',
       },
     ];
 
@@ -238,7 +239,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTrendingSection() {
+  Widget _buildTrendingSection(trendingAsync) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -246,7 +247,7 @@ class HomeScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Trending in HACK2026',
+              'Trending projects',
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -267,22 +268,53 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-
-        // Trending project cards
-        _buildTrendingCard(
-          name: 'MediScan AI',
-          author: 'by Marco Silva',
-          description: 'AI-powered triage assistant for clinics.',
-          openSpots: 2,
-        ),
-        const SizedBox(height: 12),
-        _buildTrendingCard(
-          name: 'EcoTrack',
-          author: 'by Sarah Chen',
-          description: 'Carbon footprint tracker for students.',
-          openSpots: 1,
-        ),
+        if (trendingAsync == null)
+          _buildEmptyTrending()
+        else
+          trendingAsync.when(
+            data: (projects) {
+              if (projects.isEmpty) return _buildEmptyTrending();
+              return Column(
+                children: projects
+                    .map(
+                      (p) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildTrendingCard(
+                          name: p.name,
+                          author: 'by ${p.ownerName}',
+                          description: p.description,
+                          openSpots: p.lackingSkills.length,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) => const Text('Could not load projects.'),
+          ),
       ],
+    );
+  }
+
+  Widget _buildEmptyTrending() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Center(
+        child: Text(
+          'No projects yet in your hackathon.\nBe the first to create one!',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ),
     );
   }
 
