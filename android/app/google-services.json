@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "953037226181",
+    "project_id": "colab-match",
+    "storage_bucket": "colab-match.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:953037226181:android:1cddfa5c3a5debfbf5f0ac",
+        "android_client_info": {
+          "package_name": "com.eunice.colab_match"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgxmatPB0c6CZsArgQHNvFuhkJ_wI8JYI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
