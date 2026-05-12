@@ -11,32 +11,39 @@ class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  State<MainShell> createState() => MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+// Public state so HomeScreen can access it
+class MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    BrowseScreen(),
-    CreateScreen(),
-    NotificationsScreen(),
-    ProfileScreen(),
-  ];
+  void navigateTo(int index) {
+    setState(() => _currentIndex = index);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> screens = [
+      HomeScreen(onNavigate: navigateTo),
+      const BrowseScreen(),
+      const CreateScreen(),
+      const NotificationsScreen(),
+      const ProfileScreen(),
+    ];
+
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: screens[_currentIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          border: Border(top: BorderSide(color: Colors.grey.shade100)),
+          border: Border(
+            top: BorderSide(color: Colors.grey.shade100),
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
+          onTap: navigateTo,
           backgroundColor: Colors.transparent,
           elevation: 0,
           selectedLabelStyle: GoogleFonts.inter(

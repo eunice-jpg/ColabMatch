@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
+import '../../models/project_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/project_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key});
+  final Function(int) onNavigate;
+
+  const HomeScreen({super.key, required this.onNavigate});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,7 +28,7 @@ class HomeScreen extends ConsumerWidget {
             children: [
               _buildGreeting(user?.username ?? ''),
               const SizedBox(height: 24),
-              _buildMatchReadinessCard(user),
+              _buildMatchReadinessCard(user?.skills.length ?? 0),
               const SizedBox(height: 24),
               _buildQuickActionsGrid(context),
               const SizedBox(height: 24),
@@ -59,16 +62,14 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMatchReadinessCard(user) {
-    // Calculate match readiness based on profile completeness
-    int score = 0;
-    if (user != null) {
-      if (user.skills.isNotEmpty) score += 40;
-      if (user.interests.isNotEmpty) score += 30;
-      if (user.bio.isNotEmpty) score += 20;
-      if (user.experienceLevel != 'Beginner') score += 10;
-    }
+  int _calculateReadiness(int skillsCount) {
+    if (skillsCount == 0) return 20;
+    if (skillsCount >= 5) return 100;
+    return 20 + (skillsCount * 16);
+  }
 
+  Widget _buildMatchReadinessCard(int skillsCount) {
+    final readiness = _calculateReadiness(skillsCount);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -96,7 +97,7 @@ class HomeScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '$score%',
+                '$readiness%',
                 style: GoogleFonts.inter(
                   fontSize: 42,
                   fontWeight: FontWeight.bold,
@@ -104,7 +105,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () => onNavigate(4),
                 child: Text(
                   'Boost',
                   style: GoogleFonts.inter(
@@ -120,9 +121,9 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            score < 100
+            skillsCount == 0
                 ? 'Add skills & interests to improve matches.'
-                : 'Your profile is complete!',
+                : 'Looking good! Keep adding skills to improve.',
             style: GoogleFonts.inter(
               fontSize: 13,
               color: Colors.white.withOpacity(0.75),
@@ -134,30 +135,35 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildQuickActionsGrid(BuildContext context) {
+    // index matches bottom nav: 0=Home, 1=Browse, 2=Create, 3=Inbox, 4=Profile
     final actions = [
       {
         'label': 'Profile',
         'subtitle': 'Showcase skills',
         'icon': Icons.person_outline_rounded,
         'color': const Color(0xFF6C63FF),
+        'index': 4,
       },
       {
         'label': 'Create',
         'subtitle': 'Find collaborators',
         'icon': Icons.add_box_outlined,
         'color': const Color(0xFF10B981),
+        'index': 2,
       },
       {
         'label': 'Browse',
         'subtitle': 'Join a team',
         'icon': Icons.explore_outlined,
         'color': const Color(0xFFF59E0B),
+        'index': 1,
       },
       {
         'label': 'Inbox',
-        'subtitle': 'Collaboration requests',
+        'subtitle': '0 pending',
         'icon': Icons.notifications_outlined,
         'color': const Color(0xFF8B5CF6),
+        'index': 3,
       },
     ];
 
@@ -178,7 +184,7 @@ class HomeScreen extends ConsumerWidget {
           subtitle: action['subtitle'] as String,
           icon: action['icon'] as IconData,
           color: action['color'] as Color,
-          onTap: () {},
+          onTap: () => onNavigate(action['index'] as int),
         );
       },
     );
@@ -239,7 +245,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTrendingSection(trendingAsync) {
+  Widget _buildTrendingSection(AsyncValue<List<ProjectModel>>? trendingAsync) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -255,7 +261,7 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             GestureDetector(
-              onTap: () {},
+              onTap: () => onNavigate(1),
               child: Text(
                 'See all →',
                 style: GoogleFonts.inter(
@@ -276,22 +282,17 @@ class HomeScreen extends ConsumerWidget {
               if (projects.isEmpty) return _buildEmptyTrending();
               return Column(
                 children: projects
-                    .map(
-                      (p) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildTrendingCard(
-                          name: p.name,
-                          author: 'by ${p.ownerName}',
-                          description: p.description,
-                          openSpots: p.lackingSkills.length,
-                        ),
-                      ),
-                    )
+                    .map((p) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildTrendingCard(project: p),
+                        ))
                     .toList(),
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, __) => const Text('Could not load projects.'),
+            loading: () => const Center(
+              child: CircularProgressIndicator(),
+            ),
+            error: (_, __) => _buildEmptyTrending(),
           ),
       ],
     );
@@ -307,8 +308,7 @@ class HomeScreen extends ConsumerWidget {
       ),
       child: Center(
         child: Text(
-          'No projects yet in your hackathon.\nBe the first to create one!',
-          textAlign: TextAlign.center,
+          'No projects yet in your hackathon.',
           style: GoogleFonts.inter(
             fontSize: 14,
             color: AppColors.textSecondary,
@@ -318,70 +318,72 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTrendingCard({
-    required String name,
-    required String author,
-    required String description,
-    required int openSpots,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                name,
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.tagOrange,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '$openSpots open',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.tagOrangeText,
+  Widget _buildTrendingCard({required ProjectModel project}) {
+    return GestureDetector(
+      onTap: () => onNavigate(1),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade100),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    project.name,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.tagOrange,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${project.lackingSkills.length} open',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.tagOrangeText,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'by ${project.ownerName}',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                color: AppColors.textSecondary,
               ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            author,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: AppColors.textSecondary,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: AppColors.textSecondary,
+            const SizedBox(height: 8),
+            Text(
+              project.description,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
