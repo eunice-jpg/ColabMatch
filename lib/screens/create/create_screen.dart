@@ -22,8 +22,8 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   final _existingSkillController = TextEditingController();
   final _lackingSkillController = TextEditingController();
 
-  List<String> _existingSkills = [];
-  List<String> _lackingSkills = [];
+  final List<String> _existingSkills = [];
+  final List<String> _lackingSkills = [];
   bool _showMatches = false;
 
   @override
@@ -128,9 +128,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         const SizedBox(height: 8),
         TextField(
           controller: _projectNameController,
-          decoration: const InputDecoration(
-            hintText: 'e.g. MediScan AI',
-          ),
+          decoration: const InputDecoration(hintText: 'e.g. MediScan AI'),
         ),
         const SizedBox(height: 20),
 
@@ -151,10 +149,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
             borderRadius: BorderRadius.circular(12),
@@ -181,15 +176,12 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           onAdd: () {
             if (_existingSkillController.text.trim().isNotEmpty) {
               setState(() {
-                _existingSkills.add(
-                  _existingSkillController.text.trim(),
-                );
+                _existingSkills.add(_existingSkillController.text.trim());
                 _existingSkillController.clear();
               });
             }
           },
-          onRemove: (index) =>
-              setState(() => _existingSkills.removeAt(index)),
+          onRemove: (index) => setState(() => _existingSkills.removeAt(index)),
         ),
         const SizedBox(height: 20),
 
@@ -203,15 +195,12 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           onAdd: () {
             if (_lackingSkillController.text.trim().isNotEmpty) {
               setState(() {
-                _lackingSkills.add(
-                  _lackingSkillController.text.trim(),
-                );
+                _lackingSkills.add(_lackingSkillController.text.trim());
                 _lackingSkillController.clear();
               });
             }
           },
-          onRemove: (index) =>
-              setState(() => _lackingSkills.removeAt(index)),
+          onRemove: (index) => setState(() => _lackingSkills.removeAt(index)),
           tagColor: AppColors.tagOrange,
           tagTextColor: AppColors.tagOrangeText,
         ),
@@ -224,16 +213,11 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
             decoration: BoxDecoration(
               color: AppColors.error.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.error.withOpacity(0.3),
-              ),
+              border: Border.all(color: AppColors.error.withOpacity(0.3)),
             ),
             child: Text(
               'Failed to create project. Please try again.',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: AppColors.error,
-              ),
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.error),
             ),
           ),
           const SizedBox(height: 16),
@@ -263,10 +247,12 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         }
         return Column(
           children: [
-            ...matches.map((match) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildMatchCard(match, user?.id ?? ''),
-                )),
+            ...matches.map(
+              (match) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildMatchCard(match, user?.id ?? ''),
+              ),
+            ),
           ],
         );
       },
@@ -276,7 +262,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
           child: CircularProgressIndicator(),
         ),
       ),
-      error: (_, __) => Center(
+      error: (_, _) => Center(
         child: Text(
           'Failed to load matches.',
           style: GoogleFonts.inter(color: AppColors.textSecondary),
@@ -288,9 +274,11 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   Widget _buildMatchCard(UserModel match, String currentUserId) {
     // Calculate match score
     final matchingSkills = match.skills
-        .where((s) => _lackingSkills
-            .map((l) => l.toLowerCase())
-            .contains(s.toLowerCase()))
+        .where(
+          (s) => _lackingSkills
+              .map((l) => l.toLowerCase())
+              .contains(s.toLowerCase()),
+        )
         .toList();
 
     final matchPercent = _lackingSkills.isEmpty
@@ -391,9 +379,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
                   backgroundColor: isMatch
                       ? AppColors.success.withOpacity(0.1)
                       : AppColors.tagBlue,
-                  textColor: isMatch
-                      ? AppColors.success
-                      : AppColors.tagBluText,
+                  textColor: isMatch ? AppColors.success : AppColors.tagBluText,
                 );
               }).toList(),
             ),
@@ -587,10 +573,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Center(
-        child: CircularProgressIndicator(
-          color: Colors.white,
-          strokeWidth: 2,
-        ),
+        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
       ),
     );
   }
@@ -616,7 +599,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
     }
 
     // Create project in Firestore
-    await ref.read(createProjectProvider.notifier).createProject(
+    await ref
+        .read(createProjectProvider.notifier)
+        .createProject(
           name: _projectNameController.text.trim(),
           description: _descriptionController.text.trim(),
           existingSkills: _existingSkills,
@@ -624,9 +609,7 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
         );
 
     // Find matches
-    await ref
-        .read(matchesProvider.notifier)
-        .findMatches(_lackingSkills);
+    await ref.read(matchesProvider.notifier).findMatches(_lackingSkills);
 
     if (mounted) {
       setState(() => _showMatches = true);
@@ -634,9 +617,9 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   }
 
   Future<void> _handleSendRequest(UserModel match) async {
-    await ref.read(sendRequestProvider.notifier).sendRequest(
-          toUserId: match.id,
-        );
+    await ref
+        .read(sendRequestProvider.notifier)
+        .sendRequest(toUserId: match.id);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -18,6 +18,49 @@ class FirestoreService {
     return null;
   }
 
+  // ── Skills Index ───────────────────────────────────
+
+  Future<void> updateSkillsIndex({
+    required String userId,
+    required List<String> newSkills,
+    required List<String> oldSkills,
+  }) async {
+    final batch = _db.batch();
+
+    // Remove user from skills they no longer have
+    for (final skill in oldSkills) {
+      if (!newSkills
+          .map((s) => s.toLowerCase())
+          .contains(skill.toLowerCase())) {
+        final skillRef = _db
+            .collection('skills')
+            .doc(skill.toLowerCase().trim());
+        batch.update(skillRef, {
+          'userIds': FieldValue.arrayRemove([userId]),
+        });
+      }
+    }
+
+    // Add user to new skills
+    for (final skill in newSkills) {
+      final skillId = skill.toLowerCase().trim();
+      final skillRef = _db.collection('skills').doc(skillId);
+
+      batch.set(skillRef, {
+        'skillName': skillId,
+        'userIds': FieldValue.arrayUnion([userId]),
+      }, SetOptions(merge: true));
+    }
+
+    await batch.commit();
+  }
+
+  // Get all skill names for autocomplete
+  Future<List<String>> getAllSkillNames() async {
+    final snap = await _db.collection('skills').get();
+    return snap.docs.map((doc) => doc.data()['skillName'] as String).toList();
+  }
+
   // ── Projects ───────────────────────────────────────
 
   Future<String> createProject(ProjectModel project) async {
@@ -88,34 +131,47 @@ class FirestoreService {
     required String hackathon,
     required String currentUserId,
   }) async {
-    final snap = await _db
-        .collection('users')
-        .where('hackathon', isEqualTo: hackathon)
-        .get();
+    if (lackingSkills.isEmpty) return [];
 
-    final users = snap.docs
+    // Step 1: For each lacking skill fetch userIds from skills index
+    final Map<String, int> userScores = {};
+
+    for (final skill in lackingSkills) {
+      final skillDoc = await _db
+          .collection('skills')
+          .doc(skill.toLowerCase().trim())
+          .get();
+
+      if (skillDoc.exists) {
+        final data = skillDoc.data() as Map<String, dynamic>;
+        final userIds = List<String>.from(data['userIds'] ?? []);
+
+        for (final uid in userIds) {
+          if (uid != currentUserId) {
+            userScores[uid] = (userScores[uid] ?? 0) + 1;
+          }
+        }
+      }
+    }
+
+    if (userScores.isEmpty) return [];
+
+    // Step 2: Sort by score descending
+    final sortedUserIds = userScores.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    // Step 3: Fetch only top 10 user documents
+    final topUserIds = sortedUserIds.take(10).map((e) => e.key).toList();
+
+    final userDocs = await Future.wait(
+      topUserIds.map((uid) => _db.collection('users').doc(uid).get()),
+    );
+
+    // Step 4: Filter by same hackathon and return
+    return userDocs
+        .where((doc) => doc.exists)
         .map((doc) => UserModel.fromFirestore(doc))
-        .where((user) => user.id != currentUserId)
+        .where((user) => user.hackathon == hackathon)
         .toList();
-
-    users.sort((a, b) {
-      final aScore = a.skills
-          .where(
-            (s) => lackingSkills
-                .map((m) => m.toLowerCase())
-                .contains(s.toLowerCase()),
-          )
-          .length;
-      final bScore = b.skills
-          .where(
-            (s) => lackingSkills
-                .map((m) => m.toLowerCase())
-                .contains(s.toLowerCase()),
-          )
-          .length;
-      return bScore.compareTo(aScore);
-    });
-
-    return users.take(10).toList();
   }
 }

@@ -95,7 +95,9 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             // Projects list
             Expanded(
               child: projectsAsync == null
-                  ? _buildEmpty('Sign in to browse projects.')
+                  ? _buildEmpty(
+                      'No projects found. Be the first to create one!',
+                    )
                   : projectsAsync.when(
                       data: (projects) {
                         final filtered = _searchQuery.isEmpty
@@ -120,9 +122,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                               }).toList();
 
                         if (filtered.isEmpty) {
-                          return _buildEmpty(
-                            'No projects found. Be the first to create one!',
-                          );
+                          return _buildEmpty('No projects found. ');
                         }
 
                         return ListView.separated(
