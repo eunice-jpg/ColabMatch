@@ -366,6 +366,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   String _parseError(String error) {
+    print('RAW ERROR: $error');
     if (error.contains('email-already-in-use')) {
       return 'This username is already taken.';
     } else if (error.contains('User not found')) {

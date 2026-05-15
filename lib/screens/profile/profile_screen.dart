@@ -38,6 +38,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.dispose();
   }
 
+  @override
+void initState() {
+  super.initState();
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _initializeFromUser();
+  });
+}
+
   // Load existing user data into fields
   void _initializeFromUser() {
     final user = ref.read(currentUserProvider);
@@ -57,11 +65,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user = ref.watch(currentUserProvider);
     final profileState = ref.watch(profileProvider);
 
-    // Initialize fields once user data is available
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeFromUser();
-    });
-
+  
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -391,7 +395,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _handleSave(String userId) async {
-    if (userId.isEmpty) return;
+     print('HANDLE SAVE CALLED, userId: $userId');
+    if (userId.isEmpty) {
+      
+    print('USER ID IS EMPTY - returning');
+    return;}
 
     await ref
         .read(profileProvider.notifier)

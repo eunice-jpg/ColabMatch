@@ -56,6 +56,7 @@ class AuthService {
     required String hackathon,
   }) async {
     try {
+       print('LOGIN START: $username / $hackathon');
       final query = await _firestore
           .collection('users')
           .where('username', isEqualTo: username)
@@ -63,24 +64,31 @@ class AuthService {
           .limit(1)
           .get();
 
+          print('QUERY DONE: ${query.docs.length} docs');
+
       if (query.docs.isEmpty) {
         throw Exception('User not found');
       }
 
       final userData = query.docs.first.data();
+      print('USER DATA: $userData');
       final contact = userData['contact'] as String;
 
       final email = contact.contains('@') && contact.contains('.')
           ? contact
           : '$contact@colabmatch.app';
+          print('SIGNING IN WITH: $email');
 
       await _auth.signInWithEmailAndPassword(
         email: email,
         password: _generatePassword(username, contact),
       );
+      print('LOGIN SUCCESS');
 
       return UserModel.fromFirestore(query.docs.first);
-    } catch (e) {
+    } catch (e, stack) {
+       print('LOGIN ERROR: $e');
+    print('STACK: $stack');
       rethrow;
     }
   }

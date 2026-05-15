@@ -619,7 +619,12 @@ class _CreateScreenState extends ConsumerState<CreateScreen> {
   Future<void> _handleSendRequest(UserModel match) async {
     await ref
         .read(sendRequestProvider.notifier)
-        .sendRequest(toUserId: match.id);
+        .sendRequest(
+        toUserId: match.id,
+        toUsername: match.username,
+        toProjectName: _projectNameController.text.trim(),
+        type: 'invite',
+        );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

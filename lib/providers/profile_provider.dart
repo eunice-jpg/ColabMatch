@@ -27,12 +27,26 @@ class ProfileNotifier extends StateNotifier<AsyncValue<void>> {
   }) async {
     state = const AsyncValue.loading();
     try {
+      final oldUser = await _firestoreService.getUser(userId);
+    final oldSkills = oldUser?.skills ?? [];
+    print('OLD SKILLS: $oldSkills');
+    print('NEW SKILLS: $skills');
+
       await _firestoreService.updateUser(userId, {
         'experienceLevel': experienceLevel,
         'skills': skills,
         'interests': interests,
         'bio': bio,
       });
+      print('USER UPDATED, now updating skills index...');
+
+      await _firestoreService.updateSkillsIndex(
+      userId: userId,
+      newSkills: skills,
+      oldSkills: oldSkills,
+    );
+    print('SKILLS INDEX UPDATED');
+
 
       // Update local state
       final updatedUser = await _firestoreService.getUser(userId);
@@ -42,6 +56,7 @@ class ProfileNotifier extends StateNotifier<AsyncValue<void>> {
 
       state = const AsyncValue.data(null);
     } catch (e, st) {
+      print('PROFILE ERROR: $e');
       state = AsyncValue.error(e, st);
     }
   }

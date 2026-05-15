@@ -200,7 +200,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                     Text(
                       isReceived
                           ? request.fromUsername
-                          : request.toProjectName ?? 'Unknown project',
+                          : request.toProjectName ?? 'Your project',
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -209,8 +209,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                     ),
                     Text(
                       isReceived
-                          ? 'wants to join ${request.toProjectName ?? 'your project'}'
-                          : 'Request to join',
+                          ? (request.type == 'invite'
+          ? '${request.fromUsername} invited you to join ${request.toProjectName ?? 'their project'}'
+          : '${request.fromUsername} wants to join ${request.toProjectName ?? 'your project'}')
+      : (request.type == 'invite'
+          ? 'You invited ${request.toUsername ?? 'someone'} to collaborate on ${request.toProjectName ?? 'your project'}'
+          : 'You requested to join ${request.toProjectName ?? 'a project'}'),
+          
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         color: AppColors.textSecondary,

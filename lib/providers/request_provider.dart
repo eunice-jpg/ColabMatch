@@ -37,8 +37,10 @@ class SendRequestNotifier extends StateNotifier<AsyncValue<void>> {
 
   Future<void> sendRequest({
     required String toUserId,
+    String? toUsername,
     String? toProjectId,
     String? toProjectName,
+    String type = 'join',
   }) async {
     if (_currentUser == null) return;
 
@@ -49,9 +51,11 @@ class SendRequestNotifier extends StateNotifier<AsyncValue<void>> {
         fromUserId: _currentUser.id,
         fromUsername: _currentUser.username,
         toUserId: toUserId,
+        toUsername: toUsername,
         toProjectId: toProjectId,
         toProjectName: toProjectName,
         status: 'pending',
+        type: type,
         createdAt: DateTime.now(),
       );
 

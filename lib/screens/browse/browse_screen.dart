@@ -348,6 +348,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           toUserId: project.ownerId,
           toProjectId: project.id,
           toProjectName: project.name,
+          type: 'join',
         );
 
     if (mounted) {
